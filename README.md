@@ -8,7 +8,8 @@ Only one application is currently supported, namely matrix completion. Support f
 
 # Installation
 
-`Pkg.clone("git://github.com/alaa-saade/BetheHessian.jl.git")`
+`Pkg.clone("git://github.com/alaa-saade/BetheHessian.jl.git")`.
+
 The module can then be loaded with `using BetheHessian`. 
 
 # Matrix Completion
