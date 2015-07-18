@@ -6,6 +6,11 @@ BetheHessian.jl
 A Julia package for applications of the Bethe Hessian operator in inference. 
 Only one application is currently supported, namely matrix completion. Support for community detection will be added in the future. 
 
+# Installation
+
+`Pkg.clone("git://github.com/alaa-saade/BetheHessian.jl.git")`
+The module can then be loaded with `using BetheHessian`. 
+
 # Matrix Completion
 
 Two functions are provided : demo_MC and complete. Both accept keyword arguments. Note that complete doesn't do any preprocessing. In particular, the matrix to be completed should be previously **centered**. demo_MC is just a wrapper around complete that applies complete to a randomly generated matrix.  
