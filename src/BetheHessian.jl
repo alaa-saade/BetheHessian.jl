@@ -2,7 +2,9 @@ module BetheHessian
 
 using NLopt
 using Docile
-@document
+using Lexicon
+@docstrings
+
 
 export 
 
@@ -14,7 +16,7 @@ complete
 #TBD
 
 #source 
-"
+Docile.@doc """
  `Matrix Completion with the Bethe Hessian (MaCBetH)`
 
 demo code. run `demo_MC()` to run an example with default parameters.
@@ -46,7 +48,7 @@ By default, force_rank is set to false and Macbeth tries to infer the correct ra
 *`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
 	
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
-"
+""" ->
 function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS)   	
 	
 	if max_rank == 0
@@ -85,7 +87,7 @@ function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta
 	return RMSE
 end
 
-"
+Docile.@doc """
  `Matrix Completion with the Bethe Hessian (MaCBetH)`
 
 Main completion function. Usage : inferred_X,inferred_Y,inferred_r = `complete`(M)
@@ -112,7 +114,7 @@ give you a warning. Either force_rank or max_rank should be set to a nonzero val
 *`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
 	
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
-"
+""" ->
 function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::Int = 100, force_rank::Int=0, max_rank::Int=0,verbose::Bool=true,opt_algo::Symbol = :LD_LBFGS)
 
 	if max_rank==0 && force_rank==0
