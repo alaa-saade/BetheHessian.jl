@@ -8,6 +8,6 @@ Only one application is currently supported, namely matrix completion. Support f
 
 # Matrix Completion
 
-Two functions are provided : demo and complete. Both accept keyword arguments. Note that complete doesn't do any preprocessing. In particular, the matrix to be completed should be previously **centered**.
+Two functions are provided : demo_MC and complete. Both accept keyword arguments. Note that complete doesn't do any preprocessing. In particular, the matrix to be completed should be previously **centered**. demo_MC is just a wrapper around complete that applies complete to a randomly generated matrix.  
 
-For usage and a list of the keyword arguments, type ?demo or ?complete. 
+For usage and a list of the keyword arguments, type ?demo_MC or ?complete. 
