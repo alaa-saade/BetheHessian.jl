@@ -115,7 +115,7 @@ give you a warning. Either force_rank or max_rank should be set to a nonzero val
 	
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
-function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::Int = 100, force_rank::Int=0, max_rank::Int=0,verbose::Bool=true,opt_algo::Symbol = :LD_LBFGS)
+function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::Int = 100, force_rank::Int=0, max_rank::Int=0,verbose::Bool=false,opt_algo::Symbol = :LD_LBFGS)
 
 	if max_rank==0 && force_rank==0
 		error("Either max_rank or force_rank should be >0")
