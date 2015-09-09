@@ -3,7 +3,7 @@ module BetheHessian
 using NLopt
 using Docile
 using Lexicon
-using Debug
+
 @docstrings
 
 
@@ -158,7 +158,7 @@ function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::
 			println("Initial inference done, proceeding to local optimization")
 		end
 		if opt_algo == :ALS
-			inferred_X,inferred_Y = ALS(X0,Y0,A,regul,stop_val,maxiter)
+			@time inferred_X,inferred_Y = ALS(X0,Y0,A,regul,stop_val,maxiter)
 		else
 			starting_vec = vec([reshape(X0,n*r,1) ; reshape(Y0,m*r,1)])
 			inferred_X,inferred_Y = local_optimization(starting_vec,r,i,j,s,n,m,stop_val,maxiter,verbose = verbose,opt_algo = opt_algo)
@@ -310,18 +310,21 @@ end
 
 function ALS_update_X(Y,n,r,A,At,regul)
 
-X = zeros(r,n)	
-for i = 1:n
-	neigh = find(At[:,i])
-	num = zeros(r,1)
-	denom = regul*eye(r,r)
-	for k = 1:length(neigh)
-		num += A[i,neigh[k]]*Y[:,neigh[k]]
-		denom += Y[:,neigh[k]]*Y[:,neigh[k]]'
+	X = zeros(r,n)	
+	for i = 1:n
+		
+		neigh = find(At[:,i])
+		num = zeros(r,1)
+		denom = regul*eye(r,r)
+		
+		for k = 1:length(neigh)
+			Base.LinAlg.BLAS.axpy!(r,A[i,neigh[k]],Y[:,neigh[k]],1,num,1)
+			Base.LinAlg.BLAS.gemm!('N','T',1.0,Y[:,neigh[k]],Y[:,neigh[k]],1.0,denom)
+		end
+		
+		X[:,i] = inv(denom)*num
 	end
-	X[:,i] = inv(denom)*num
-end
-return X
+	return X
 end
 
 function ALS_update_Y(X,m,r,A,At,regul)
@@ -331,8 +334,8 @@ function ALS_update_Y(X,m,r,A,At,regul)
 		num = zeros(r,1)
 		denom = regul*eye(r,r)
 		for k = 1:length(neigh)
-			num += A[neigh[k],i]*X[:,neigh[k]]
-			denom += X[:,neigh[k]]*X[:,neigh[k]]'
+			Base.LinAlg.BLAS.axpy!(r,A[neigh[k],i],X[:,neigh[k]],1,num,1)
+			Base.LinAlg.BLAS.gemm!('N','T',1.0,X[:,neigh[k]],X[:,neigh[k]],1.0,denom)
 		end
 		Y[:,i] = inv(denom)*num
 	end
