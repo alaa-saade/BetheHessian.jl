@@ -3,6 +3,7 @@ module BetheHessian
 using NLopt
 using Docile
 using Lexicon
+using Debug
 @docstrings
 
 
@@ -17,7 +18,7 @@ complete
 
 #source 
 Docile.@doc """
- `Matrix Completion with the Bethe Hessian (MaCBetH)`
+`Matrix Completion with the Bethe Hessian (MaCBetH)`
 
 demo code. run `demo_MC()` to run an example with default parameters.
 demo_MC accepts keyword arguments to set a subset of the parameters.
@@ -46,10 +47,10 @@ By default, force_rank is set to false and Macbeth tries to infer the correct ra
 *`max_rank::Int` : maximum possible rank when inferring the rank (default rank+1)
 
 *`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
-	
+
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
-function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS)   	
+function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 0.0)   	
 	
 	if max_rank == 0
 		max_rank = rank+1
@@ -71,10 +72,10 @@ function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta
 
 	if !force_rank
 		# Unspecified rank
-		X_inferred,Y_inferred,r = complete(A_obs,tol_bet = tol_bet,stop_val = stop_val,maxiter = maxiter,max_rank = max_rank,verbose = verbose,opt_algo = opt_algo)
+		X_inferred,Y_inferred,r = complete(A_obs,tol_bet = tol_bet,stop_val = stop_val,maxiter = maxiter,max_rank = max_rank,verbose = verbose,opt_algo = opt_algo,regul = regul)
 	else 
 		# Specified rank
-		X_inferred,Y_inferred,r = complete(A_obs,tol_bet = tol_bet,stop_val = stop_val,maxiter = maxiter,force_rank = rank,verbose = verbose,opt_algo = opt_algo)
+		X_inferred,Y_inferred,r = complete(A_obs,tol_bet = tol_bet,stop_val = stop_val,maxiter = maxiter,force_rank = rank,verbose = verbose,opt_algo = opt_algo,regul = regul)
 	end
 	if r == 0
 		RMSE = sqrt(mean((true_A - A_obs).^2))
@@ -88,7 +89,7 @@ function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta
 end
 
 Docile.@doc """
- `Matrix Completion with the Bethe Hessian (MaCBetH)`
+`Matrix Completion with the Bethe Hessian (MaCBetH)`
 
 Main completion function. Usage : inferred_X,inferred_Y,inferred_r = `complete`(M)
 where M is the matrix to be completed. Note that the input observation matrix should be **centered**.
@@ -112,10 +113,10 @@ computed are negative (i.e. if the inferred rank is larger than max_rank), Macbe
 give you a warning. Either force_rank or max_rank should be set to a nonzero value.
 
 *`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
-	
+
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
-function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::Int = 100, force_rank::Int=0, max_rank::Int=0,verbose::Bool=false,opt_algo::Symbol = :LD_LBFGS)
+function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::Int = 100, force_rank::Int=0, max_rank::Int=0,verbose::Bool=false,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 0.0)
 
 	if max_rank==0 && force_rank==0
 		error("Either max_rank or force_rank should be >0")
@@ -156,8 +157,12 @@ function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::
 		if verbose
 			println("Initial inference done, proceeding to local optimization")
 		end
-		starting_vec = vec([reshape(X0,n*r,1) ; reshape(Y0,m*r,1)])
-		inferred_X,inferred_Y = local_optimization(starting_vec,r,i,j,s,n,m,stop_val,maxiter,verbose = verbose,opt_algo = opt_algo)
+		if opt_algo == :ALS
+			inferred_X,inferred_Y = ALS(X0,Y0,A,regul,stop_val,maxiter)
+		else
+			starting_vec = vec([reshape(X0,n*r,1) ; reshape(Y0,m*r,1)])
+			inferred_X,inferred_Y = local_optimization(starting_vec,r,i,j,s,n,m,stop_val,maxiter,verbose = verbose,opt_algo = opt_algo)
+		end
 	end
 	return inferred_X,inferred_Y,r
 end
@@ -284,6 +289,56 @@ function F(bet,lin,col,val,c_1,c_2)
 	y = sqrt(c_1*c_2)*y/num_obs - 1
 end
 
+function ALS(X0,Y0,A,regul,stop_val,maxiter)
+	n = size(X0,1)
+	m = size(Y0,1)
+	r = size(X0,2)
+	At = A'
+	X = X0'
+	Y = Y0'
+	iter = 0
+	accuracy = stop_val + 0.1
+	
+	while iter < maxiter && accuracy > stop_val
+		iter += 1
+		X = ALS_update_X(Y,n,r,A,At,regul)
+		Y = ALS_update_Y(X,m,r,A,At,regul)
+	end
+
+	return X',Y'
+end
+
+function ALS_update_X(Y,n,r,A,At,regul)
+
+X = zeros(r,n)	
+for i = 1:n
+	neigh = find(At[:,i])
+	num = zeros(r,1)
+	denom = regul*eye(r,r)
+	for k = 1:length(neigh)
+		num += A[i,neigh[k]]*Y[:,neigh[k]]
+		denom += Y[:,neigh[k]]*Y[:,neigh[k]]'
+	end
+	X[:,i] = inv(denom)*num
+end
+return X
+end
+
+function ALS_update_Y(X,m,r,A,At,regul)
+	Y = zeros(r,m)	
+	for i = 1:m
+		neigh = find(A[:,i])
+		num = zeros(r,1)
+		denom = regul*eye(r,r)
+		for k = 1:length(neigh)
+			num += A[neigh[k],i]*X[:,neigh[k]]
+			denom += X[:,neigh[k]]*X[:,neigh[k]]'
+		end
+		Y[:,i] = inv(denom)*num
+	end
+	return Y
+end
+
 function local_optimization(starting_vec,r,I,J,VAL,n,m,stop_val,maxiter;verbose::Bool=true,opt_algo::Symbol =:LD_LBFGS)
 	global count
 	count = 0
@@ -295,7 +350,7 @@ function local_optimization(starting_vec,r,I,J,VAL,n,m,stop_val,maxiter;verbose:
 	if verbose 
 		println("Optimization method :",opt_algo)
 	end
-	
+
 	min_objective!(opt, (x,g) -> myfunc(x,g,I,J,VAL,r,n,m,verbose,stop_val_cost_function,maxiter) )
 	maxeval!(opt, maxiter)	
 	stopval!(opt, stop_val_cost_function)
