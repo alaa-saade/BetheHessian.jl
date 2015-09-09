@@ -158,7 +158,7 @@ function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::
 			println("Initial inference done, proceeding to local optimization")
 		end
 		if opt_algo == :ALS
-			@time inferred_X,inferred_Y = ALS(X0,Y0,A,regul,stop_val,maxiter)
+			inferred_X,inferred_Y = ALS(X0,Y0,A,regul,stop_val,maxiter)
 		else
 			starting_vec = vec([reshape(X0,n*r,1) ; reshape(Y0,m*r,1)])
 			inferred_X,inferred_Y = local_optimization(starting_vec,r,i,j,s,n,m,stop_val,maxiter,verbose = verbose,opt_algo = opt_algo)
@@ -313,18 +313,24 @@ function ALS(X0,Y0,A,regul,stop_val,maxiter)
 end
 
 function ALS_update_X!(X,Y,n,r,A,At,regul)
-		
+
 	for i = 1:n
 		
 		neigh = find(At[:,i])
-		num = zeros(r,1)
-		denom = regul*eye(r,r)
+		# num = zeros(r,1)
+		denom = eye(r,r)
 		
-		for k = 1:length(neigh)
-			Base.LinAlg.BLAS.axpy!(r,A[i,neigh[k]],Y[:,neigh[k]],1,num,1)
-			Base.LinAlg.BLAS.gemm!('N','T',1.0,Y[:,neigh[k]],Y[:,neigh[k]],1.0,denom)
-		end		
-		X[:,i] = inv(denom)*num
+		coeff_num = At[neigh,i]
+		vecnums = Y[:,neigh]
+		num = vecnums*coeff_num
+		denom = regul*eye(r,r)+vecnums*vecnums.'
+		# Base.LinAlg.BLAS.gemm!('N', 'T', 1.0, vecnums,vecnums, regul, denom)
+		# for k = 1:length(neigh)
+		# 	Base.LinAlg.BLAS.axpy!(r,A[i,neigh[k]],Y[:,neigh[k]],1,num,1)
+		# 	Base.LinAlg.BLAS.gemm!('N','T',1.0,Y[:,neigh[k]],Y[:,neigh[k]],1.0,denom)
+		# end		
+		# X[:,i] = inv(denom)*num
+		X[:,i] = denom\num
 	end
 end
 
@@ -332,13 +338,18 @@ function ALS_update_Y!(X,Y,m,r,A,At,regul)
 	
 	for i = 1:m
 		neigh = find(A[:,i])
-		num = zeros(r,1)
-		denom = regul*eye(r,r)
-		for k = 1:length(neigh)
-			Base.LinAlg.BLAS.axpy!(r,A[neigh[k],i],X[:,neigh[k]],1,num,1)
-			Base.LinAlg.BLAS.gemm!('N','T',1.0,X[:,neigh[k]],X[:,neigh[k]],1.0,denom)
-		end
-		Y[:,i] = inv(denom)*num
+		coeff_num = A[neigh,i]
+		vecnums = X[:,neigh]
+		num = vecnums*coeff_num
+		denom = regul*eye(r,r)+vecnums*vecnums.'
+
+		# num = zeros(r,1)
+		# denom = regul*eye(r,r)
+		# for k = 1:length(neigh)
+		# 	Base.LinAlg.BLAS.axpy!(r,A[neigh[k],i],X[:,neigh[k]],1,num,1)
+		# 	Base.LinAlg.BLAS.gemm!('N','T',1.0,X[:,neigh[k]],X[:,neigh[k]],1.0,denom)
+		# end
+		Y[:,i] = denom\num		
 	end
 end
 
