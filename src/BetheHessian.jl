@@ -78,9 +78,9 @@ function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta
 		X_inferred,Y_inferred,r = complete(A_obs,tol_bet = tol_bet,stop_val = stop_val,maxiter = maxiter,force_rank = rank,verbose = verbose,opt_algo = opt_algo,regul = regul)
 	end
 	if r == 0
-		RMSE = sqrt(mean((true_A - A_obs).^2))
+		RMSE = sqrt(1/(m*n)*sumabs2(true_A - A_obs))
 	else
-		RMSE = sqrt(mean((true_A - X_inferred*Y_inferred').^2))
+		RMSE = sqrt(1/(m*n)*sumabs2(true_A - X_inferred*Y_inferred'))
 	end
 	if verbose
 		println("Reconstruction error (RMSE) on full matrix with a rank ",r," approach : ",RMSE)
@@ -301,16 +301,19 @@ function ALS(X0,Y0,A,regul,stop_val,maxiter)
 	
 	while iter < maxiter && accuracy > stop_val
 		iter += 1
-		X = ALS_update_X(Y,n,r,A,At,regul)
-		Y = ALS_update_Y(X,m,r,A,At,regul)
+		old_X = X
+		old_Y = Y
+		ALS_update_X!(X,Y,n,r,A,At,regul)
+		ALS_update_Y!(X,Y,m,r,A,At,regul)
+		accuracy = max(sqrt(1.0/(n*m)*sumabs2(X-old_X)),accuracy)
+		accuracy = max(sqrt(1.0/(n*m)*sumabs2(Y-old_Y)),accuracy)
 	end
 
 	return X',Y'
 end
 
-function ALS_update_X(Y,n,r,A,At,regul)
-
-	X = zeros(r,n)	
+function ALS_update_X!(X,Y,n,r,A,At,regul)
+		
 	for i = 1:n
 		
 		neigh = find(At[:,i])
@@ -320,15 +323,13 @@ function ALS_update_X(Y,n,r,A,At,regul)
 		for k = 1:length(neigh)
 			Base.LinAlg.BLAS.axpy!(r,A[i,neigh[k]],Y[:,neigh[k]],1,num,1)
 			Base.LinAlg.BLAS.gemm!('N','T',1.0,Y[:,neigh[k]],Y[:,neigh[k]],1.0,denom)
-		end
-		
+		end		
 		X[:,i] = inv(denom)*num
 	end
-	return X
 end
 
-function ALS_update_Y(X,m,r,A,At,regul)
-	Y = zeros(r,m)	
+function ALS_update_Y!(X,Y,m,r,A,At,regul)
+	
 	for i = 1:m
 		neigh = find(A[:,i])
 		num = zeros(r,1)
@@ -339,7 +340,6 @@ function ALS_update_Y(X,m,r,A,At,regul)
 		end
 		Y[:,i] = inv(denom)*num
 	end
-	return Y
 end
 
 function local_optimization(starting_vec,r,I,J,VAL,n,m,stop_val,maxiter;verbose::Bool=true,opt_algo::Symbol =:LD_LBFGS)
