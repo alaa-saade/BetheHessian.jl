@@ -48,7 +48,7 @@ By default, force_rank is set to false and Macbeth tries to infer the correct ra
 
 *`stop_val::Float64` : stopping condition of the non-linear optimization. If opt_algo is set to :ALS, the iterations will stop if the factors vary by less than stop_val between two iterations. If NLopt is used, the optimization will stop if the RMSE on the observed entries is smaller than stop_val (default 1e-10)
 
-*`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 1e-10)
+*`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 0.0)
 
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
@@ -118,7 +118,7 @@ give you a warning. Either force_rank or max_rank should be set to a nonzero val
 
 *`stop_val::Float64` : stopping condition of the non-linear optimization. If opt_algo is set to :ALS, the iterations will stop if the factors vary by less than stop_val between two iterations. If NLopt is used, the optimization will stop if the RMSE on the observed entries is smaller than stop_val (default 1e-10)
 
-*`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 1e-10)
+*`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 0.0)
 
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
@@ -336,8 +336,8 @@ function ALS_update_X!(X,Y,n,r,A,At,regul)
 	for i = 1:n
 		
 		neigh = find(At[:,i])
+		Nneigh = length(neigh)
 		# num = zeros(r,1)
-		denom = eye(r,r)
 		
 		coeff_num = At[neigh,i]
 		vecnums = Y[:,neigh]
@@ -349,14 +349,23 @@ function ALS_update_X!(X,Y,n,r,A,At,regul)
 		# 	Base.LinAlg.BLAS.gemm!('N','T',1.0,Y[:,neigh[k]],Y[:,neigh[k]],1.0,denom)
 		# end		
 		# X[:,i] = inv(denom)*num
-		X[:,i] = denom\num
+
+		# @show num 
+		# @show denom
+
+		if Nneigh < r && regul == 0.0
+			X[:,i] = pinv(denom)*num
+		else
+			X[:,i] = denom\num
+		end
 	end
 end
 
 function ALS_update_Y!(X,Y,m,r,A,At,regul)
-	
+
 	for i = 1:m
 		neigh = find(A[:,i])
+		Nneigh = length(neigh)
 		coeff_num = A[neigh,i]
 		vecnums = X[:,neigh]
 		num = vecnums*coeff_num
@@ -368,7 +377,11 @@ function ALS_update_Y!(X,Y,m,r,A,At,regul)
 		# 	Base.LinAlg.BLAS.axpy!(r,A[neigh[k],i],X[:,neigh[k]],1,num,1)
 		# 	Base.LinAlg.BLAS.gemm!('N','T',1.0,X[:,neigh[k]],X[:,neigh[k]],1.0,denom)
 		# end
-		Y[:,i] = denom\num		
+		if Nneigh < r && regul == 0.0
+			Y[:,i] = pinv(denom)*num		
+		else
+			Y[:,i] = denom\num
+		end
 	end
 end
 
