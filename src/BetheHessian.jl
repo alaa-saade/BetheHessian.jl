@@ -51,6 +51,8 @@ By default, force_rank is set to false and Macbeth tries to infer the correct ra
 *`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 0.0)
 
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
+
+*`random::Bool` : set to true to use random initial conditions for the optimization, instead of the eigenvectors of the Bethe Hessian - for comparison (default false)
 """ ->
 function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 0.0,random::Bool = false)   	
 	
@@ -130,6 +132,8 @@ give you a warning. Either force_rank or max_rank should be set to a nonzero val
 *`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 0.0)
 
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
+
+*`random::Bool` : set to true to use random initial conditions for the optimization, instead of the eigenvectors of the Bethe Hessian - for comparison (default false)
 """ ->
 function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::Int = 100, force_rank::Int=0, max_rank::Int=0,verbose::Bool=false,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 0.0,random::Bool = false)
 
