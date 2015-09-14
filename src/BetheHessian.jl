@@ -35,8 +35,6 @@ List of keywords
 
 *`Delta` : variance of gaussian additive noise (default 0)
 
-*`stop_val::Float64` : stoping value of the NLopt solver. The optimization will stop if the RMSE on the observed entries is smaller than stop_val (default 1e-10)
-
 *`maxiter::Int` : (approximate) maximum number of iterations of the NLopt solver (default 100)
 
 *`tol_bet::Float64` : tolerance of the numerical solver for the parameter beta (default 1e-4)
@@ -46,11 +44,15 @@ By default, force_rank is set to false and Macbeth tries to infer the correct ra
 
 *`max_rank::Int` : maximum possible rank when inferring the rank (default rank+1)
 
-*`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
+*`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include Alternating Least Squares (:ALS) or any of the algorithms implemented in NLopt, e.g. :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
+
+*`stop_val::Float64` : stopping condition of the non-linear optimization. If opt_algo is set to :ALS, the iterations will stop if the factors vary by less than stop_val between two iterations. If NLopt is used, the optimization will stop if the RMSE on the observed entries is smaller than stop_val (default 1e-10)
+
+*`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 1e-10)
 
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
-function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 0.0)   	
+function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 1e-10)   	
 	
 	if max_rank == 0
 		max_rank = rank+1
@@ -112,7 +114,11 @@ Either force_rank or max_rank should be set to a nonzero value.
 computed are negative (i.e. if the inferred rank is larger than max_rank), Macbeth will 
 give you a warning. Either force_rank or max_rank should be set to a nonzero value.
 
-*`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
+*`opt_algo::Symbol` : algorithm for the non-linear optimization. Choices include Alternating Least Squares (:ALS) or any of the algorithms implemented in NLopt, e.g. :LD_LBFGS, :LD_TNEWTON, :LD_VAR2, ... See [http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms](http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms) for a full list (default :LD_LBFGS)
+
+*`stop_val::Float64` : stopping condition of the non-linear optimization. If opt_algo is set to :ALS, the iterations will stop if the factors vary by less than stop_val between two iterations. If NLopt is used, the optimization will stop if the RMSE on the observed entries is smaller than stop_val (default 1e-10)
+
+*`regul::Float64` : value of the L2 regularizer for the :ALS optimization (default 1e-10)
 
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
@@ -301,12 +307,13 @@ function ALS(X0,Y0,A,regul,stop_val,maxiter)
 	
 	while iter < maxiter && accuracy > stop_val
 		iter += 1
-		old_X = X
-		old_Y = Y
+		old_X = copy(X)
+		old_Y = copy(Y)
 		ALS_update_X!(X,Y,n,r,A,At,regul)
 		ALS_update_Y!(X,Y,m,r,A,At,regul)
-		accuracy = max(sqrt(1.0/(n*m)*sumabs2(X-old_X)),accuracy)
-		accuracy = max(sqrt(1.0/(n*m)*sumabs2(Y-old_Y)),accuracy)
+		# accuracy = sqrt(1/(m*n)*sumabs2(A - X'*Y))
+		@show accuracy = min(max(sqrt(1.0/(n*m)*sumabs2(X-old_X)),sqrt(1.0/(n*m)*sumabs2(Y-old_Y))),accuracy)
+		# @show accuracy = min(sqrt(1.0/(n*m)*sumabs2(Y-old_Y)),accuracy)
 	end
 
 	return X',Y'
