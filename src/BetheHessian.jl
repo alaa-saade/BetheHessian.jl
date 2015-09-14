@@ -52,7 +52,7 @@ By default, force_rank is set to false and Macbeth tries to infer the correct ra
 
 *`verbose::Bool` : set to false to prevent the code from talking (default true)
 """ ->
-function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 1e-10)   	
+function demo_MC(;n::Int = 1000,m::Int = 1000,rank::Int = 10, epsilon = 50,Delta = 0,stop_val::Float64 = 1e-10, maxiter::Int = 100,tol_bet::Float64 = 1e-4,force_rank::Bool = false,verbose::Bool = true,max_rank::Int=0,opt_algo::Symbol = :LD_LBFGS,regul::Float64 = 0.0)   	
 	
 	if max_rank == 0
 		max_rank = rank+1
@@ -164,7 +164,7 @@ function complete(A;tol_bet::Float64 = 0.001,stop_val::Float64 = 1e-10,maxiter::
 			println("Initial inference done, proceeding to local optimization")
 		end
 		if opt_algo == :ALS
-			inferred_X,inferred_Y = ALS(X0,Y0,A,regul,stop_val,maxiter)
+			inferred_X,inferred_Y = ALS(X0,Y0,A,regul,stop_val,maxiter,verbose)
 		else
 			starting_vec = vec([reshape(X0,n*r,1) ; reshape(Y0,m*r,1)])
 			inferred_X,inferred_Y = local_optimization(starting_vec,r,i,j,s,n,m,stop_val,maxiter,verbose = verbose,opt_algo = opt_algo)
@@ -295,7 +295,7 @@ function F(bet,lin,col,val,c_1,c_2)
 	y = sqrt(c_1*c_2)*y/num_obs - 1
 end
 
-function ALS(X0,Y0,A,regul,stop_val,maxiter)
+function ALS(X0,Y0,A,regul,stop_val,maxiter,verbose)
 	n = size(X0,1)
 	m = size(Y0,1)
 	r = size(X0,2)
@@ -312,8 +312,20 @@ function ALS(X0,Y0,A,regul,stop_val,maxiter)
 		ALS_update_X!(X,Y,n,r,A,At,regul)
 		ALS_update_Y!(X,Y,m,r,A,At,regul)
 		# accuracy = sqrt(1/(m*n)*sumabs2(A - X'*Y))
-		@show accuracy = min(max(sqrt(1.0/(n*m)*sumabs2(X-old_X)),sqrt(1.0/(n*m)*sumabs2(Y-old_Y))),accuracy)
+		accuracy = max(sqrt(1.0/(n*m)*sumabs2(X-old_X)),sqrt(1.0/(n*m)*sumabs2(Y-old_Y)))
+		if verbose && (mod(iter,20) == 1 || accuracy < stop_val || iter == maxiter)
+			println("ALS: iteration ",iter," RMSE between new and old estimate of factors ",accuracy)
+		end
 		# @show accuracy = min(sqrt(1.0/(n*m)*sumabs2(Y-old_Y)),accuracy)
+	end
+
+	if verbose
+		if accuracy < stop_val
+			println("Optimization completed : stopping value reached (RMSE between successive estimates < $stop_val)")
+		end
+		if iter == maxiter
+			println("Optimization completed : maximum number of iterations reached ($maxiter)")
+		end
 	end
 
 	return X',Y'
