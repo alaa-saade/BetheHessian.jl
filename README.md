@@ -25,7 +25,7 @@ To do
 # Ressources 
 
 Matrix Completion: 
-* *Matrix Completion from Fewer Entries: Spectral Detectability and Rank Estimation*, A Saade, F Krzakala, L Zdeborová - arXiv preprint arXiv:1506.03498, 2015 
+* *Matrix Completion from Fewer Entries: Spectral Detectability and Rank Estimation*, A Saade, F Krzakala, L Zdeborová - NIPS2015
 
 Community Detection:
 * *Spectral Clustering of Graphs with the Bethe Hessian*, A Saade, F Krzakala, L Zdeborová - NIPS2014
